@@ -10,6 +10,7 @@ _APT_LINE_RE = re.compile(r"^([^/\s]+)/[^\s]+\s+([^\s]+)\s+[^\s]+\s+\[upgradable
 
 def parse_apt_upgradable(output: str) -> list[InstalledItem]:
     items = []
+    elevate = "pkexec" if shutil.which("pkexec") else "sudo"
     for line in output.splitlines():
         line = line.strip()
         m = _APT_LINE_RE.match(line)
@@ -23,7 +24,7 @@ def parse_apt_upgradable(output: str) -> list[InstalledItem]:
                     ecosystem="apt",
                     installed_version=old_ver,
                     latest_version=new_ver,
-                    update_command=f"sudo apt-get install --only-upgrade -y {pkg}",
+                    update_command=f"{elevate} apt-get install --only-upgrade -y {pkg}",
                     description=f"Debian/Ubuntu package ({pkg})",
                 )
             )
@@ -218,3 +219,4 @@ def scan_all_ecosystems() -> list[InstalledItem]:
             except Exception:
                 pass
     return results
+
