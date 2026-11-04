@@ -65,3 +65,4 @@ class UpdateRecord:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "UpdateRecord":
         return cls(**data)
+

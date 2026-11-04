@@ -44,5 +44,14 @@ class TestUI(unittest.TestCase):
         visible_rows = [r for r in range(self.window.table.rowCount()) if not self.window.table.isRowHidden(r)]
         self.assertEqual(len(visible_rows), 1)
 
+    def test_run_updates_cancel_sudo(self):
+        item = InstalledItem("apt:curl", "curl", Category.SYSTEM, "apt", "1.0", "1.1", update_command="sudo apt-get install curl")
+        with unittest.mock.patch("PyQt5.QtWidgets.QInputDialog.getText", return_value=("", False)):
+            with unittest.mock.patch("subprocess.run") as mock_sub:
+                mock_sub.return_value.returncode = 1
+                self.window._run_updates([item])
+                self.assertIn("cancelled", self.window.status_label.text().lower())
+
 if __name__ == "__main__":
     unittest.main()
+

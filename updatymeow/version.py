@@ -20,3 +20,4 @@ def is_major_update(current: str, latest: str) -> bool:
     t1 = parse_version_tuple(current)
     t2 = parse_version_tuple(latest)
     return len(t1) > 0 and len(t2) > 0 and t2[0] > t1[0]
+

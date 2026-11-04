@@ -1,5 +1,6 @@
 from datetime import datetime
 import os
+import subprocess
 from typing import Optional
 
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
@@ -9,6 +10,7 @@ from PyQt5.QtWidgets import (
     QDialog,
     QHBoxLayout,
     QHeaderView,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -131,9 +133,10 @@ class UpdateWorker(QThread):
     item_finished = pyqtSignal(str, bool, str)
     all_done = pyqtSignal()
 
-    def __init__(self, items_to_update: list[InstalledItem]):
+    def __init__(self, items_to_update: list[InstalledItem], sudo_password: Optional[str] = None):
         super().__init__()
         self.items = items_to_update
+        self.sudo_password = sudo_password
 
     def run(self):
         for item in self.items:
@@ -141,7 +144,11 @@ class UpdateWorker(QThread):
                 continue
             self.line_output.emit(f"==> Updating {item.name} ({item.id})...")
             self.line_output.emit(f"$ {item.update_command}")
-            code, out = execute_command(item.update_command, on_output=self.line_output.emit)
+            code, out = execute_command(
+                item.update_command,
+                on_output=self.line_output.emit,
+                sudo_password=self.sudo_password,
+            )
             success = code == 0
             self.item_finished.emit(item.id, success, out)
         self.all_done.emit()
@@ -515,6 +522,31 @@ class MainWindow(QMainWindow):
             self._run_updates(outdated)
 
     def _run_updates(self, items_to_update: list[InstalledItem]):
+        needs_sudo = any(
+            "apt" in item.ecosystem or "sudo" in item.update_command or "pkexec" in item.update_command
+            for item in items_to_update
+        )
+
+        sudo_password = None
+        if needs_sudo:
+            try:
+                res = subprocess.run(["sudo", "-n", "true"], capture_output=True)
+                has_cached_sudo = (res.returncode == 0)
+            except Exception:
+                has_cached_sudo = False
+
+            if not has_cached_sudo:
+                pwd, ok = QInputDialog.getText(
+                    self,
+                    "Authentication Required",
+                    "Administrative privileges required for updating system packages.\nEnter sudo password:",
+                    QLineEdit.Password,
+                )
+                if not ok or not pwd:
+                    self.status_label.setText("Update cancelled: Sudo password required.")
+                    return
+                sudo_password = pwd
+
         dlg = QDialog(self)
         dlg.setWindowTitle("Executing Updates")
         dlg.resize(600, 400)
@@ -538,7 +570,7 @@ class MainWindow(QMainWindow):
         close_btn.clicked.connect(dlg.accept)
         dlg_layout.addWidget(close_btn)
 
-        worker = UpdateWorker(items_to_update)
+        worker = UpdateWorker(items_to_update, sudo_password=sudo_password)
         worker.line_output.connect(log_box.append)
 
         def on_item_fin(item_id, success, out):
@@ -565,3 +597,4 @@ class MainWindow(QMainWindow):
         worker.all_done.connect(on_all_done)
         worker.start()
         dlg.exec_()
+

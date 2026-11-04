@@ -66,3 +66,4 @@ class Store:
                 item.status = Status.PINNED
             if item.id in fav_ids:
                 item.is_favorite = True
+

@@ -13,5 +13,12 @@ class TestRunner(unittest.TestCase):
         code, out = execute_command("false")
         self.assertNotEqual(code, 0)
 
+    def test_execute_with_stdin_input(self):
+        lines = []
+        code, out = execute_command("cat", on_output=lines.append, sudo_password="secret_pass")
+        self.assertEqual(code, 0)
+        self.assertIn("secret_pass", out)
+
 if __name__ == "__main__":
     unittest.main()
+

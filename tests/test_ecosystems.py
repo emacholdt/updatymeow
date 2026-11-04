@@ -83,3 +83,4 @@ org.gimp.GIMP\t2.10.36\t2.10.38
 
 if __name__ == "__main__":
     unittest.main()
+

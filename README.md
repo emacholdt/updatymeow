@@ -74,3 +74,4 @@ python3 -m unittest discover tests
 ## 📄 License
 
 MIT License. Inspired by [Daniel Filler's UpdatyMe](https://github.com/DanielFiller30/UpdatyMe).
+
