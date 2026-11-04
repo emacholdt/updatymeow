@@ -84,6 +84,23 @@ org.gimp.GIMP\t2.10.36\t2.10.38
         user_items = parse_pip_outdated(sample_json, is_user=True)
         self.assertEqual(user_items[0].update_command, "pip install --user -U black")
 
+    def test_parse_custom_tools(self):
+        from updatymeow.ecosystems import parse_custom_tools
+        sample = """[
+            {
+                "id": "custom:foo",
+                "name": "FooCLI",
+                "installed_version": "1.0.0",
+                "latest_version": "1.2.0",
+                "update_command": "foo update"
+            }
+        ]"""
+        items = parse_custom_tools(sample)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].name, "FooCLI")
+        self.assertEqual(items[0].category, Category.TOOLS)
+        self.assertEqual(items[0].status, Status.OUTDATED)
+
 if __name__ == "__main__":
     unittest.main()
 

@@ -3,11 +3,15 @@ import os
 import subprocess
 from typing import Optional
 
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QColor, QFont, QIcon
+from PyQt5.QtCore import Qt, QThread, QTimer, QUrl, pyqtSignal
+from PyQt5.QtGui import QColor, QDesktopServices, QFont, QIcon
 from PyQt5.QtWidgets import (
+    QAction,
     QApplication,
+    QCheckBox,
+    QComboBox,
     QDialog,
+    QGroupBox,
     QHBoxLayout,
     QHeaderView,
     QInputDialog,
@@ -16,10 +20,13 @@ from PyQt5.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QProgressBar,
     QPushButton,
     QSplitter,
+    QStyle,
+    QSystemTrayIcon,
     QTableWidget,
     QTableWidgetItem,
     QTextEdit,
@@ -154,6 +161,99 @@ class UpdateWorker(QThread):
         self.all_done.emit()
 
 
+class SettingsDialog(QDialog):
+    def __init__(self, parent=None, store: Optional[Store] = None):
+        super().__init__(parent)
+        self.store = store or Store()
+        self.setWindowTitle("Settings")
+        self.resize(480, 420)
+        self.setStyleSheet(STYLESHEET)
+        layout = QVBoxLayout(self)
+
+        settings = self.store.get_settings()
+
+        # General
+        gen_group = QGroupBox("General")
+        gen_layout = QVBoxLayout(gen_group)
+        self.autostart_chk = QCheckBox("Open at login")
+        self.autostart_chk.setChecked(self.store.is_autostart_enabled())
+        gen_layout.addWidget(self.autostart_chk)
+
+        self.tray_chk = QCheckBox("Keep running in system tray on close")
+        self.tray_chk.setChecked(settings.get("minimize_to_tray", True))
+        gen_layout.addWidget(self.tray_chk)
+
+        interval_layout = QHBoxLayout()
+        interval_layout.addWidget(QLabel("Check automatically:"))
+        self.interval_combo = QComboBox()
+        self.intervals = [
+            ("Every 6 hours", "6h"),
+            ("Every 12 hours", "12h"),
+            ("Daily", "24h"),
+            ("Weekly", "weekly"),
+            ("Never", "never"),
+        ]
+        for label, val in self.intervals:
+            self.interval_combo.addItem(label, val)
+        curr_int = settings.get("check_interval", "6h")
+        for idx, (_, val) in enumerate(self.intervals):
+            if val == curr_int:
+                self.interval_combo.setCurrentIndex(idx)
+        interval_layout.addWidget(self.interval_combo)
+        gen_layout.addLayout(interval_layout)
+        layout.addWidget(gen_group)
+
+        # Notifications
+        notif_group = QGroupBox("Notifications")
+        notif_layout = QVBoxLayout(notif_group)
+        self.notif_new_chk = QCheckBox("Notify when new updates are available")
+        self.notif_new_chk.setChecked(settings.get("notify_new_updates", True))
+        notif_layout.addWidget(self.notif_new_chk)
+
+        self.notif_fin_chk = QCheckBox("Notify when updates finish in background")
+        self.notif_fin_chk.setChecked(settings.get("notify_updates_finished", True))
+        notif_layout.addWidget(self.notif_fin_chk)
+        layout.addWidget(notif_group)
+
+        # Configuration (tools.json)
+        tools_group = QGroupBox("Configuration")
+        tools_layout = QVBoxLayout(tools_group)
+        tools_info = QLabel("Add custom CLI tools or GitHub release checks to tools.json without code changes.")
+        tools_info.setWordWrap(True)
+        tools_info.setStyleSheet("color: #a6adc8; font-size: 11px;")
+        tools_layout.addWidget(tools_info)
+        open_tools_btn = QPushButton("📁 Open Config Folder")
+        open_tools_btn.clicked.connect(self._open_config_folder)
+        tools_layout.addWidget(open_tools_btn)
+        layout.addWidget(tools_group)
+
+        # Action buttons
+        btn_box = QHBoxLayout()
+        btn_box.addStretch()
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        save_btn = QPushButton("Save")
+        save_btn.setObjectName("primaryBtn")
+        save_btn.clicked.connect(self._save)
+        btn_box.addWidget(cancel_btn)
+        btn_box.addWidget(save_btn)
+        layout.addLayout(btn_box)
+
+    def _open_config_folder(self):
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.store.config_dir)))
+
+    def _save(self):
+        self.store.set_autostart(self.autostart_chk.isChecked())
+        settings = self.store.get_settings()
+        settings["autostart"] = self.autostart_chk.isChecked()
+        settings["minimize_to_tray"] = self.tray_chk.isChecked()
+        settings["check_interval"] = self.interval_combo.currentData()
+        settings["notify_new_updates"] = self.notif_new_chk.isChecked()
+        settings["notify_updates_finished"] = self.notif_fin_chk.isChecked()
+        self.store.save_settings(settings)
+        self.accept()
+
+
 class MainWindow(QMainWindow):
     def __init__(self, store: Optional[Store] = None):
         super().__init__()
@@ -163,12 +263,18 @@ class MainWindow(QMainWindow):
         self.update_worker: Optional[UpdateWorker] = None
         self.current_category_filter = "All"
         self.current_status_filter = "All"
+        self.last_sidebar_row = 0
 
         self.setWindowTitle("UpdatyMeow - Linux Software Updates")
         self.resize(1100, 680)
         self.setStyleSheet(STYLESHEET)
 
+        self.auto_timer = QTimer(self)
+        self.auto_timer.timeout.connect(self.start_scan)
+
         self._init_ui()
+        self._setup_tray()
+        self._setup_timer()
 
     def _init_ui(self):
         central_widget = QWidget()
@@ -188,6 +294,7 @@ class MainWindow(QMainWindow):
             ("📦 Packages", Category.PACKAGES.value),
             ("⭐ Favorites", "Favorites"),
             ("🕒 History", "History"),
+            ("⚙️ Settings", "Settings"),
         ]
         for label, _ in self.sidebar_items:
             item = QListWidgetItem(label)
@@ -226,6 +333,10 @@ class MainWindow(QMainWindow):
         self.update_all_btn.setObjectName("primaryBtn")
         self.update_all_btn.clicked.connect(self.update_all)
         top_bar.addWidget(self.update_all_btn)
+
+        self.settings_btn = QPushButton("⚙️ Settings")
+        self.settings_btn.clicked.connect(self.open_settings)
+        top_bar.addWidget(self.settings_btn)
 
         center_layout.addLayout(top_bar)
 
@@ -363,6 +474,12 @@ class MainWindow(QMainWindow):
 
     def _on_sidebar_changed(self, row: int):
         _, key = self.sidebar_items[row]
+        if key == "Settings":
+            self.open_settings()
+            self.sidebar.setCurrentRow(self.last_sidebar_row)
+            return
+
+        self.last_sidebar_row = row
         if key == "History":
             self.table.setVisible(False)
             self.history_table.setVisible(True)
@@ -497,6 +614,81 @@ class MainWindow(QMainWindow):
     def _on_scan_finished(self, items: list[InstalledItem]):
         self.refresh_btn.setEnabled(True)
         self.set_items(items)
+        outdated_count = sum(1 for i in self.items if i.status == Status.OUTDATED)
+        if hasattr(self, "tray_icon") and self.tray_icon.isVisible():
+            self.tray_icon.setToolTip(f"UpdatyMeow - {outdated_count} update(s) available")
+            settings = self.store.get_settings()
+            if settings.get("notify_new_updates", True) and outdated_count > 0:
+                if not self.isActiveWindow():
+                    self.tray_icon.showMessage(
+                        "Updates Available",
+                        f"{outdated_count} software update(s) are ready to install.",
+                        QSystemTrayIcon.Information,
+                        5000,
+                    )
+
+    def open_settings(self):
+        dlg = SettingsDialog(self, self.store)
+        if dlg.exec_() == QDialog.Accepted:
+            self._setup_timer()
+
+    def _setup_tray(self):
+        self.tray_icon = QSystemTrayIcon(self)
+        icon = QIcon.fromTheme("system-software-update")
+        if icon.isNull():
+            icon = self.style().standardIcon(QStyle.SP_ArrowUp)
+        self.tray_icon.setIcon(icon)
+        self.tray_icon.setToolTip("UpdatyMeow - Software Updates")
+
+        tray_menu = QMenu()
+        open_action = tray_menu.addAction("Open UpdatyMeow")
+        open_action.triggered.connect(self._show_and_activate)
+        check_action = tray_menu.addAction("Check for Updates")
+        check_action.triggered.connect(self.start_scan)
+        settings_action = tray_menu.addAction("Settings...")
+        settings_action.triggered.connect(self.open_settings)
+        tray_menu.addSeparator()
+        quit_action = tray_menu.addAction("Quit")
+        quit_action.triggered.connect(QApplication.quit)
+
+        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.activated.connect(self._on_tray_activated)
+        self.tray_icon.show()
+
+    def _on_tray_activated(self, reason):
+        if reason == QSystemTrayIcon.Trigger:
+            if self.isVisible():
+                self.hide()
+            else:
+                self._show_and_activate()
+
+    def _show_and_activate(self):
+        self.show()
+        self.raise_()
+        self.activateWindow()
+
+    def closeEvent(self, event):
+        settings = self.store.get_settings()
+        if settings.get("minimize_to_tray", True) and hasattr(self, "tray_icon") and self.tray_icon.isVisible():
+            event.ignore()
+            self.hide()
+        else:
+            event.accept()
+
+    def _setup_timer(self):
+        settings = self.store.get_settings()
+        interval = settings.get("check_interval", "6h")
+        intervals_ms = {
+            "6h": 6 * 3600 * 1000,
+            "12h": 12 * 3600 * 1000,
+            "24h": 24 * 3600 * 1000,
+            "weekly": 7 * 24 * 3600 * 1000,
+        }
+        if interval in intervals_ms:
+            self.auto_timer.setInterval(intervals_ms[interval])
+            self.auto_timer.start()
+        else:
+            self.auto_timer.stop()
 
     def update_selected(self):
         selected_rows = self.table.selectedItems()
@@ -591,6 +783,14 @@ class MainWindow(QMainWindow):
         def on_all_done():
             close_btn.setEnabled(True)
             info_lbl.setText("Updates finished!")
+            settings = self.store.get_settings()
+            if settings.get("notify_updates_finished", True) and hasattr(self, "tray_icon") and self.tray_icon.isVisible():
+                self.tray_icon.showMessage(
+                    "Updates Completed",
+                    "Finished installing selected software updates.",
+                    QSystemTrayIcon.Information,
+                    4000,
+                )
             self.start_scan()
 
         worker.item_finished.connect(on_item_fin)

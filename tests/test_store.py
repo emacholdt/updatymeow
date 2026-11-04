@@ -61,6 +61,24 @@ class TestStore(unittest.TestCase):
         self.assertEqual(items[0].status, Status.PINNED)
         self.assertTrue(items[1].is_favorite)
 
+    def test_settings_persistence(self):
+        settings = self.store.get_settings()
+        self.assertEqual(settings.get("check_interval"), "6h")
+        settings["check_interval"] = "12h"
+        self.store.save_settings(settings)
+
+        store2 = Store(config_dir=Path(self.test_dir))
+        self.assertEqual(store2.get_settings().get("check_interval"), "12h")
+
+    def test_autostart_toggle(self):
+        autostart_dir = Path(self.test_dir) / "autostart"
+        self.store.autostart_dir = autostart_dir
+        self.assertFalse(self.store.is_autostart_enabled())
+        self.store.set_autostart(True)
+        self.assertTrue(self.store.is_autostart_enabled())
+        self.store.set_autostart(False)
+        self.assertFalse(self.store.is_autostart_enabled())
+
 if __name__ == "__main__":
     unittest.main()
 

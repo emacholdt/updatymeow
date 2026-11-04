@@ -52,6 +52,13 @@ class TestUI(unittest.TestCase):
                 self.window._run_updates([item])
                 self.assertIn("cancelled", self.window.status_label.text().lower())
 
+    def test_settings_dialog(self):
+        from updatymeow.ui import SettingsDialog
+        dialog = SettingsDialog(self.window, store=self.store)
+        self.assertIsNotNone(dialog)
+        self.assertEqual(dialog.interval_combo.currentText(), "Every 6 hours")
+        dialog.close()
+
 if __name__ == "__main__":
     unittest.main()
 

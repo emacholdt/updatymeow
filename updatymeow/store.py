@@ -3,6 +3,14 @@ from pathlib import Path
 from typing import Optional
 from updatymeow.models import InstalledItem, Status, UpdateRecord
 
+DEFAULT_SETTINGS = {
+    "autostart": False,
+    "minimize_to_tray": True,
+    "check_interval": "6h",
+    "notify_new_updates": True,
+    "notify_updates_finished": True,
+}
+
 class Store:
     def __init__(self, config_dir: Optional[Path] = None):
         self.config_dir = config_dir or (Path.home() / ".config" / "updatymeow")
@@ -10,6 +18,9 @@ class Store:
         self.pinned_file = self.config_dir / "pinned.json"
         self.favorites_file = self.config_dir / "favorites.json"
         self.history_file = self.config_dir / "history.json"
+        self.settings_file = self.config_dir / "settings.json"
+        self.tools_file = self.config_dir / "tools.json"
+        self.autostart_dir = Path.home() / ".config" / "autostart"
 
     def _read_json(self, path: Path, default):
         if not path.exists():
@@ -56,6 +67,37 @@ class Store:
     def get_history(self) -> list[UpdateRecord]:
         raw = self._read_json(self.history_file, [])
         return [UpdateRecord.from_dict(d) for d in raw]
+
+    def get_settings(self) -> dict:
+        saved = self._read_json(self.settings_file, {})
+        settings = dict(DEFAULT_SETTINGS)
+        settings.update(saved)
+        return settings
+
+    def save_settings(self, settings: dict):
+        self._write_json(self.settings_file, settings)
+
+    def is_autostart_enabled(self) -> bool:
+        autostart_file = self.autostart_dir / "updatymeow.desktop"
+        return autostart_file.exists()
+
+    def set_autostart(self, enabled: bool):
+        self.autostart_dir.mkdir(parents=True, exist_ok=True)
+        autostart_file = self.autostart_dir / "updatymeow.desktop"
+        if enabled:
+            content = """[Desktop Entry]
+Name=UpdatyMeow
+Comment=One window solution for Linux software updates
+Exec=updatymeow --minimized
+Icon=system-software-update
+Terminal=false
+Type=Application
+Categories=System;Settings;PackageManager;
+"""
+            autostart_file.write_text(content, encoding="utf-8")
+        else:
+            if autostart_file.exists():
+                autostart_file.unlink()
 
     def apply_preferences(self, items: list[InstalledItem]):
         pinned_ids = set(self._read_json(self.pinned_file, []))

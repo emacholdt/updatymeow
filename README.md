@@ -26,38 +26,45 @@ APT, Flatpak, Snap, Python packages, global NPM tools, and developer runtimes �
   - Update selected packages or hit **Update All**
 - 🕒 **History**:
   - Tracks update runs with timestamps, versions, and execution logs
+- 🔔 **Quietly in the Background**:
+  - System tray icon with pending updates count badge
+  - Native desktop notifications when new updates are found or finished
+  - Automatic scheduled checks (every 6h, 12h, daily, or weekly)
+  - Launch at login (autostart)
+- 🧩 **Extensible without Code**:
+  - Add custom tools to `~/.config/updatymeow/tools.json`
 - 💻 **CLI & GUI Modes**:
   - Launch full desktop GUI or run `updatymeow --check` in terminal / cron scripts
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Installation & Getting Started
 
 ### Prerequisites
 
 - Python 3.10+
 - PyQt5 (`sudo apt install python3-pyqt5`)
 
-### Quick Start
+### Install
 
 ```bash
-# Clone the repository
 git clone https://github.com/emacholdt/updatymeow.git
 cd updatymeow
-
-# Run GUI
-./run.py
-
-# Or run terminal check
-./run.py --check
+./install.sh
 ```
 
-### Install Desktop Launcher
+This installs `updatymeow` into `~/.local/bin/` and sets up the desktop launcher in `~/.local/share/applications/` without hardcoded paths.
 
+To uninstall anytime:
 ```bash
-mkdir -p ~/.local/share/applications
-cp updatymeow.desktop ~/.local/share/applications/
+./uninstall.sh
 ```
+
+### Usage
+
+- **GUI**: Launch `updatymeow` from your terminal or application launcher.
+- **Terminal Check**: Run `updatymeow --check` to quickly list pending updates without opening a window.
+- **Autostart Mode**: Run `updatymeow --minimized` to start directly in the system tray.
 
 ---
 

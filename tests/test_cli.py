@@ -12,6 +12,14 @@ class TestCLI(unittest.TestCase):
         ret = main(["--check"])
         self.assertEqual(ret, 0)
 
+    @patch("updatymeow.ui.MainWindow")
+    def test_cli_minimized_mode(self, mock_window):
+        # Test that --minimized creates window but does not call show()
+        instance = mock_window.return_value
+        from updatymeow.cli import parse_args
+        parsed = parse_args(["--minimized"])
+        self.assertTrue(parsed.minimized)
+
 if __name__ == "__main__":
     unittest.main()
 

@@ -100,6 +100,37 @@ def parse_npm_outdated(json_str: str) -> list[InstalledItem]:
         pass
     return items
 
+def parse_custom_tools(json_str: str) -> list[InstalledItem]:
+    items = []
+    try:
+        data = json.loads(json_str)
+        tools_list = data if isinstance(data, list) else data.get("tools", [])
+        for entry in tools_list:
+            items.append(
+                InstalledItem(
+                    id=entry.get("id", f"custom:{entry.get('name', 'tool')}"),
+                    name=entry.get("name", "Custom Tool"),
+                    category=Category.TOOLS,
+                    ecosystem="custom",
+                    installed_version=entry.get("installed_version", ""),
+                    latest_version=entry.get("latest_version"),
+                    update_command=entry.get("update_command", ""),
+                    description=entry.get("description", "Custom configured tool"),
+                )
+            )
+    except Exception:
+        pass
+    return items
+
+def scan_custom_tools(tools_path: Optional[Path] = None) -> list[InstalledItem]:
+    path = tools_path or (Path.home() / ".config" / "updatymeow" / "tools.json")
+    if not path.exists():
+        return []
+    try:
+        return parse_custom_tools(path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
 def parse_pip_outdated(json_str: str, is_user: bool = False) -> list[InstalledItem]:
     items = []
     user_flag = " --user" if is_user else ""
@@ -217,7 +248,7 @@ def scan_runtimes() -> list[InstalledItem]:
     return items
 
 def scan_all_ecosystems() -> list[InstalledItem]:
-    scanners = [scan_apt, scan_snap, scan_flatpak, scan_npm, scan_pip, scan_runtimes]
+    scanners = [scan_apt, scan_snap, scan_flatpak, scan_npm, scan_pip, scan_runtimes, scan_custom_tools]
     results = []
     with ThreadPoolExecutor(max_workers=len(scanners)) as ex:
         futures = [ex.submit(s) for s in scanners]
