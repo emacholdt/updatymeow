@@ -35,7 +35,7 @@ lxd      5.21.1    28400  95MB   canonical✓  -
         self.assertEqual(items[0].name, "firefox")
         self.assertEqual(items[0].category, Category.APPS)
         self.assertEqual(items[0].latest_version, "125.0.2")
-        self.assertEqual(items[0].update_command, "snap refresh firefox")
+        self.assertEqual(items[0].update_command, "sudo snap refresh firefox")
 
     def test_parse_flatpak_updates(self):
         sample_output = """org.mozilla.firefox\t125.0.1\t125.0.2

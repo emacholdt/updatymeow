@@ -48,7 +48,7 @@ def parse_snap_refresh_list(output: str) -> list[InstalledItem]:
                     installed_version="",
                     latest_version=new_ver,
                     status=Status.OUTDATED,
-                    update_command=f"snap refresh {name}",
+                    update_command=f"sudo snap refresh {name}",
                     description=f"Snap application ({name})",
                 )
             )

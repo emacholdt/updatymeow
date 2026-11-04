@@ -523,7 +523,7 @@ class MainWindow(QMainWindow):
 
     def _run_updates(self, items_to_update: list[InstalledItem]):
         needs_sudo = any(
-            "apt" in item.ecosystem or "sudo" in item.update_command or "pkexec" in item.update_command
+            item.ecosystem in ("apt", "snap") or "sudo" in item.update_command or "pkexec" in item.update_command
             for item in items_to_update
         )
 
