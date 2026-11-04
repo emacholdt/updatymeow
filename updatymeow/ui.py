@@ -24,6 +24,7 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QProgressBar,
     QPushButton,
+    QSizeGrip,
     QSplitter,
     QStyle,
     QSystemTrayIcon,
@@ -40,89 +41,243 @@ from updatymeow.runner import execute_command
 from updatymeow.store import Store
 
 STYLESHEET = """
-QMainWindow {
-    background-color: #1e1e2e;
-    color: #cdd6f4;
+QMainWindow, QDialog {
+    background-color: #0d0f12;
+    color: #e6e8ec;
 }
 QWidget {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-size: 13px;
-    color: #cdd6f4;
+    color: #e6e8ec;
 }
+
+/* Sidebar */
 QListWidget {
-    background-color: #181825;
+    background-color: #12151b;
     border: none;
-    border-right: 1px solid #313244;
-    padding: 8px;
+    border-right: 1px solid #1a1e27;
+    padding: 12px 8px;
     outline: none;
 }
 QListWidget::item {
-    padding: 10px 14px;
-    border-radius: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
     margin-bottom: 3px;
-    color: #a6adc8;
+    color: #8b929e;
     font-weight: 500;
 }
 QListWidget::item:selected {
-    background-color: #313244;
-    color: #cdd6f4;
-    font-weight: bold;
+    background-color: #1c222d;
+    color: #ffffff;
+    font-weight: 600;
 }
 QListWidget::item:hover:!selected {
-    background-color: #24253a;
-    color: #cdd6f4;
+    background-color: #161a22;
+    color: #d1d5db;
 }
+
+/* Table */
 QTableWidget {
-    background-color: #1e1e2e;
+    background-color: #0d0f12;
     border: none;
-    gridline-color: #313244;
-    selection-background-color: #313244;
-    selection-color: #cdd6f4;
+    gridline-color: transparent;
+    selection-background-color: #171c26;
+    selection-color: #ffffff;
+    outline: none;
+}
+QTableWidget::item {
+    padding: 8px 12px;
+    border-bottom: 1px solid #151820;
+}
+QTableWidget::item:selected {
+    background-color: #171c26;
 }
 QHeaderView::section {
-    background-color: #181825;
-    color: #a6adc8;
-    padding: 8px;
+    background-color: #0d0f12;
+    color: #64748b;
+    padding: 8px 12px;
     border: none;
-    border-bottom: 1px solid #313244;
+    border-bottom: 1px solid #1a1e27;
+    font-size: 11px;
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
 }
+
+/* Inputs */
 QLineEdit {
-    background-color: #313244;
-    border: 1px solid #45475a;
+    background-color: #12151b;
+    border: 1px solid #1e232e;
     border-radius: 6px;
-    padding: 6px 12px;
-    color: #cdd6f4;
+    padding: 7px 12px;
+    color: #f1f3f7;
+    selection-background-color: #2563eb;
 }
 QLineEdit:focus {
-    border: 1px solid #89b4fa;
+    border: 1px solid #3b82f6;
+    background-color: #151922;
 }
+
+/* Buttons */
 QPushButton {
-    background-color: #313244;
-    border: 1px solid #45475a;
+    background-color: #141820;
+    border: 1px solid #202633;
     border-radius: 6px;
-    padding: 6px 14px;
-    font-weight: 600;
-    color: #cdd6f4;
+    padding: 7px 14px;
+    font-weight: 500;
+    color: #cbd5e1;
 }
 QPushButton:hover {
-    background-color: #45475a;
+    background-color: #1b212c;
+    border-color: #2b3345;
+    color: #ffffff;
+}
+QPushButton:pressed {
+    background-color: #12151b;
+}
+QPushButton:checked {
+    background-color: #1e2430;
+    border-color: #3b82f6;
+    color: #60a5fa;
 }
 QPushButton#primaryBtn {
-    background-color: #89b4fa;
-    color: #11111b;
+    background-color: #2563eb;
+    color: #ffffff;
     border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-weight: 600;
 }
 QPushButton#primaryBtn:hover {
-    background-color: #b4befe;
+    background-color: #1d4ed8;
 }
-QTextEdit {
-    background-color: #11111b;
-    border: 1px solid #313244;
+QPushButton#primaryBtn:disabled {
+    background-color: #171b24;
+    color: #4b5563;
+    border: 1px solid #1e232e;
+}
+
+#inspectorPane {
+    background-color: #12151b;
+    border-left: 1px solid #1a1e27;
+}
+#inspectorPane QPushButton {
+    background-color: #161a22;
+    border: 1px solid #222733;
     border-radius: 6px;
-    font-family: monospace;
+    padding: 8px 14px;
+    font-weight: 500;
+    color: #cbd5e1;
+}
+#inspectorPane QPushButton:hover {
+    background-color: #1c212c;
+    border-color: #2b3345;
+    color: #ffffff;
+}
+#inspectorPane QPushButton#primaryBtn {
+    background-color: #2563eb;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+}
+#inspectorPane QPushButton#primaryBtn:hover {
+    background-color: #1d4ed8;
+}
+#inspectorPane QPushButton#primaryBtn:disabled {
+    background-color: #171b24;
+    color: #4b5563;
+    border: 1px solid #1e232e;
+}
+
+#sidebarContainer {
+    background-color: #12151b;
+    border-right: 1px solid #1a1e27;
+}
+
+/* Text and Code Areas */
+QTextEdit {
+    background-color: #090a0d;
+    border: 1px solid #181c25;
+    border-radius: 6px;
+    font-family: ui-monospace, "SF Mono", "Fira Code", monospace;
     font-size: 12px;
-    color: #a6e3a1;
+    color: #e2e8f0;
+    padding: 8px;
+}
+
+/* Forms & Modals */
+QGroupBox {
+    border: 1px solid #1a1e27;
+    border-radius: 8px;
+    margin-top: 18px;
+    padding-top: 14px;
+    font-weight: 600;
+    color: #94a3b8;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 6px;
+    color: #cbd5e1;
+}
+QComboBox {
+    background-color: #12151b;
+    border: 1px solid #1e232e;
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: #e2e8f0;
+}
+QComboBox QAbstractItemView {
+    background-color: #12151b;
+    border: 1px solid #1e232e;
+    selection-background-color: #1c222d;
+    selection-color: #ffffff;
+}
+QCheckBox {
+    spacing: 8px;
+    color: #cbd5e1;
+}
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1px solid #2b3345;
+    background-color: #12151b;
+}
+QCheckBox::indicator:checked {
+    background-color: #2563eb;
+    border-color: #3b82f6;
+}
+QProgressBar {
+    background-color: #12151b;
+    border: 1px solid #1e232e;
+    border-radius: 4px;
+    height: 6px;
+    text-align: center;
+}
+QProgressBar::chunk {
+    background-color: #10b981;
+    border-radius: 3px;
+}
+QScrollBar:vertical {
+    border: none;
+    background: transparent;
+    width: 7px;
+    margin: 0;
+}
+QScrollBar::handle:vertical {
+    background: #1e232e;
+    min-height: 20px;
+    border-radius: 3px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #2b3345;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0;
 }
 """
 
@@ -220,9 +375,9 @@ class SettingsDialog(QDialog):
         tools_layout = QVBoxLayout(tools_group)
         tools_info = QLabel("Add custom CLI tools or GitHub release checks to tools.json without code changes.")
         tools_info.setWordWrap(True)
-        tools_info.setStyleSheet("color: #a6adc8; font-size: 11px;")
+        tools_info.setStyleSheet("color: #8b929e; font-size: 11px;")
         tools_layout.addWidget(tools_info)
-        open_tools_btn = QPushButton("📁 Open Config Folder")
+        open_tools_btn = QPushButton("Open Config Folder")
         open_tools_btn.clicked.connect(self._open_config_folder)
         tools_layout.addWidget(open_tools_btn)
         layout.addWidget(tools_group)
@@ -254,6 +409,93 @@ class SettingsDialog(QDialog):
         self.accept()
 
 
+class IntegratedTitleBar(QWidget):
+    def __init__(self, parent_window):
+        super().__init__(parent_window)
+        self.win = parent_window
+        self.setFixedHeight(34)
+        self.setStyleSheet("""
+            IntegratedTitleBar {
+                background-color: #0d0f12;
+                border-bottom: 1px solid #1a1e27;
+            }
+            QLabel#titleText {
+                color: #64748b;
+                font-size: 11px;
+                font-weight: 600;
+                letter-spacing: 0.5px;
+                padding-left: 14px;
+            }
+            QPushButton.windowControl {
+                background-color: transparent;
+                border: none;
+                border-radius: 4px;
+                color: #8b929e;
+                font-size: 11px;
+                width: 26px;
+                height: 20px;
+                margin-right: 4px;
+            }
+            QPushButton.windowControl:hover {
+                background-color: #1f242e;
+                color: #ffffff;
+            }
+            QPushButton#closeControl:hover {
+                background-color: #dc2626;
+                color: #ffffff;
+            }
+        """)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 8, 0)
+        layout.setSpacing(4)
+
+        self.title_lbl = QLabel("UPDATYMEOW")
+        self.title_lbl.setObjectName("titleText")
+        layout.addWidget(self.title_lbl)
+
+        layout.addStretch()
+
+        self.min_btn = QPushButton("—")
+        self.min_btn.setProperty("class", "windowControl")
+        self.min_btn.clicked.connect(self.win.showMinimized)
+        layout.addWidget(self.min_btn)
+
+        self.max_btn = QPushButton("□")
+        self.max_btn.setProperty("class", "windowControl")
+        self.max_btn.clicked.connect(self._toggle_maximize)
+        layout.addWidget(self.max_btn)
+
+        self.close_btn = QPushButton("✕")
+        self.close_btn.setProperty("class", "windowControl")
+        self.close_btn.setObjectName("closeControl")
+        self.close_btn.clicked.connect(self.win.close)
+        layout.addWidget(self.close_btn)
+
+        self._drag_pos = None
+
+    def _toggle_maximize(self):
+        if self.win.isMaximized():
+            self.win.showNormal()
+            self.max_btn.setText("□")
+        else:
+            self.win.showMaximized()
+            self.max_btn.setText("❐")
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self._drag_pos = event.globalPos() - self.win.frameGeometry().topLeft()
+            event.accept()
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() == Qt.LeftButton and self._drag_pos:
+            self.win.move(event.globalPos() - self._drag_pos)
+            event.accept()
+
+    def mouseDoubleClickEvent(self, event):
+        self._toggle_maximize()
+
+
 class MainWindow(QMainWindow):
     def __init__(self, store: Optional[Store] = None):
         super().__init__()
@@ -267,6 +509,7 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("UpdatyMeow - Linux Software Updates")
         self.resize(1100, 680)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         self.setStyleSheet(STYLESHEET)
 
         self.auto_timer = QTimer(self)
@@ -278,92 +521,147 @@ class MainWindow(QMainWindow):
 
     def _init_ui(self):
         central_widget = QWidget()
+        central_widget.setObjectName("mainWindowRoot")
         self.setCentralWidget(central_widget)
-        main_layout = QHBoxLayout(central_widget)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
+        root_layout = QVBoxLayout(central_widget)
+        root_layout.setContentsMargins(1, 1, 1, 1)
+        root_layout.setSpacing(0)
 
-        # 1. Left Sidebar
+        # Integrated Modern Top Titlebar
+        self.title_bar = IntegratedTitleBar(self)
+        root_layout.addWidget(self.title_bar)
+
+        # Body Row (Sidebar + Splitter)
+        body_widget = QWidget()
+        body_layout = QHBoxLayout(body_widget)
+        body_layout.setContentsMargins(0, 0, 0, 0)
+        body_layout.setSpacing(0)
+
+        # 1. Left Sidebar Container with App Brand Header
+        sidebar_container = QWidget()
+        sidebar_container.setObjectName("sidebarContainer")
+        sidebar_container.setFixedWidth(200)
+        sidebar_layout = QVBoxLayout(sidebar_container)
+        sidebar_layout.setContentsMargins(0, 0, 0, 0)
+        sidebar_layout.setSpacing(0)
+
+        brand_widget = QWidget()
+        brand_layout = QVBoxLayout(brand_widget)
+        brand_layout.setContentsMargins(18, 16, 18, 12)
+        brand_layout.setSpacing(2)
+
+        brand_title = QLabel("UpdatyMeow")
+        brand_title.setStyleSheet("font-size: 15px; font-weight: 700; color: #f8fafc; letter-spacing: -0.2px;")
+        brand_sub = QLabel("Linux Software Updates")
+        brand_sub.setStyleSheet("font-size: 11px; color: #64748b; font-weight: 500;")
+        brand_layout.addWidget(brand_title)
+        brand_layout.addWidget(brand_sub)
+        sidebar_layout.addWidget(brand_widget)
+
         self.sidebar = QListWidget()
-        self.sidebar.setFixedWidth(220)
         self.sidebar_items = [
-            ("📦 All Updates", "All"),
-            ("🖥️ System", Category.SYSTEM.value),
-            ("🚀 Apps", Category.APPS.value),
-            ("⚡ Runtimes", Category.RUNTIMES.value),
-            ("📦 Packages", Category.PACKAGES.value),
-            ("⭐ Favorites", "Favorites"),
-            ("🕒 History", "History"),
-            ("⚙️ Settings", "Settings"),
+            ("All Updates", "All"),
+            ("System", Category.SYSTEM.value),
+            ("Apps", Category.APPS.value),
+            ("Runtimes", Category.RUNTIMES.value),
+            ("Packages", Category.PACKAGES.value),
+            ("Favorites", "Favorites"),
+            ("History", "History"),
+            ("Settings", "Settings"),
         ]
         for label, _ in self.sidebar_items:
             item = QListWidgetItem(label)
             self.sidebar.addItem(item)
         self.sidebar.setCurrentRow(0)
         self.sidebar.currentRowChanged.connect(self._on_sidebar_changed)
-        main_layout.addWidget(self.sidebar)
+        sidebar_layout.addWidget(self.sidebar)
+        body_layout.addWidget(sidebar_container)
 
         # 2. Main Area Splitter (Table + Inspector)
         splitter = QSplitter(Qt.Horizontal)
-        main_layout.addWidget(splitter)
+        body_layout.addWidget(splitter)
 
         # Central panel
         center_widget = QWidget()
         center_layout = QVBoxLayout(center_widget)
-        center_layout.setContentsMargins(16, 16, 16, 16)
-        center_layout.setSpacing(12)
+        center_layout.setContentsMargins(24, 20, 24, 20)
+        center_layout.setSpacing(16)
 
-        # Top Bar: Search & Actions
-        top_bar = QHBoxLayout()
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("🔍 Search packages or ecosystems...")
-        self.search_input.textChanged.connect(self._apply_filters)
-        top_bar.addWidget(self.search_input)
+        # Top Section: Two-tier View Header
+        header_row = QHBoxLayout()
+        header_text_layout = QVBoxLayout()
+        header_text_layout.setSpacing(2)
 
-        self.filter_updates_btn = QPushButton("Updates Only")
-        self.filter_updates_btn.setCheckable(True)
-        self.filter_updates_btn.toggled.connect(self._toggle_updates_only)
-        top_bar.addWidget(self.filter_updates_btn)
+        self.view_title = QLabel("All Updates")
+        self.view_title.setStyleSheet("font-size: 20px; font-weight: 700; color: #f8fafc; letter-spacing: -0.3px;")
+        self.status_label = QLabel("Scanning system for updates...")
+        self.status_label.setStyleSheet("color: #64748b; font-size: 13px; font-weight: 400;")
+        header_text_layout.addWidget(self.view_title)
+        header_text_layout.addWidget(self.status_label)
+        header_row.addLayout(header_text_layout)
 
-        self.refresh_btn = QPushButton("🔄 Check for Updates")
+        header_row.addStretch()
+
+        self.refresh_btn = QPushButton("Check for Updates")
         self.refresh_btn.clicked.connect(self.start_scan)
-        top_bar.addWidget(self.refresh_btn)
+        header_row.addWidget(self.refresh_btn)
 
-        self.update_all_btn = QPushButton("⚡ Update All")
+        self.update_all_btn = QPushButton("Update All")
         self.update_all_btn.setObjectName("primaryBtn")
         self.update_all_btn.clicked.connect(self.update_all)
-        top_bar.addWidget(self.update_all_btn)
+        header_row.addWidget(self.update_all_btn)
 
-        self.settings_btn = QPushButton("⚙️ Settings")
-        self.settings_btn.clicked.connect(self.open_settings)
-        top_bar.addWidget(self.settings_btn)
+        center_layout.addLayout(header_row)
 
-        center_layout.addLayout(top_bar)
+        # Tier 2: Search & Filter Toolbar
+        filter_row = QHBoxLayout()
+        filter_row.setSpacing(8)
 
-        # Status / Summary bar
-        self.status_label = QLabel("Ready")
-        self.status_label.setStyleSheet("color: #a6adc8; font-size: 12px;")
-        center_layout.addWidget(self.status_label)
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Filter packages...")
+        self.search_input.textChanged.connect(self._apply_filters)
+        filter_row.addWidget(self.search_input)
+
+        self.filter_updates_btn = QPushButton("Updates only")
+        self.filter_updates_btn.setCheckable(True)
+        self.filter_updates_btn.toggled.connect(self._toggle_updates_only)
+        filter_row.addWidget(self.filter_updates_btn)
+
+        center_layout.addLayout(filter_row)
 
         # Table of items
         self.table = QTableWidget()
         self.table.setColumnCount(6)
-        self.table.setHorizontalHeaderLabels(["⭐", "Name", "Ecosystem", "Installed", "Latest", "Status"])
-        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.table.setHorizontalHeaderLabels(["", "Package", "Ecosystem", "Installed", "Latest", "Status"])
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.Fixed)
+        self.table.setColumnWidth(0, 32)
+        header.setSectionResizeMode(1, QHeaderView.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.Fixed)
+        self.table.setColumnWidth(2, 90)
+        header.setSectionResizeMode(3, QHeaderView.Fixed)
+        self.table.setColumnWidth(3, 110)
+        header.setSectionResizeMode(4, QHeaderView.Fixed)
+        self.table.setColumnWidth(4, 110)
+        header.setSectionResizeMode(5, QHeaderView.Fixed)
+        self.table.setColumnWidth(5, 140)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
         self.table.verticalHeader().setVisible(False)
+        self.table.verticalHeader().setDefaultSectionSize(36)
+        self.table.setShowGrid(False)
         self.table.itemSelectionChanged.connect(self._on_table_selection)
         self.table.cellDoubleClicked.connect(self._on_cell_double_clicked)
         center_layout.addWidget(self.table)
 
-        # History table widget (hidden by default, shown when History selected in sidebar)
+        # History table widget
         self.history_table = QTableWidget()
         self.history_table.setColumnCount(5)
         self.history_table.setHorizontalHeaderLabels(["Timestamp", "Package", "From", "To", "Result"])
         self.history_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.history_table.verticalHeader().setVisible(False)
+        self.history_table.verticalHeader().setDefaultSectionSize(36)
+        self.history_table.setShowGrid(False)
         self.history_table.setVisible(False)
         center_layout.addWidget(self.history_table)
 
@@ -371,51 +669,60 @@ class MainWindow(QMainWindow):
 
         # 3. Right Inspector Pane
         self.inspector = QWidget()
-        self.inspector.setFixedWidth(320)
+        self.inspector.setObjectName("inspectorPane")
+        self.inspector.setFixedWidth(310)
         inspector_layout = QVBoxLayout(self.inspector)
-        inspector_layout.setContentsMargins(16, 16, 16, 16)
-        inspector_layout.setSpacing(10)
+        inspector_layout.setContentsMargins(18, 20, 18, 20)
+        inspector_layout.setSpacing(12)
 
-        inspector_title = QLabel("Item Inspector")
-        inspector_title.setFont(QFont("", 14, QFont.Bold))
+        inspector_title = QLabel("Package Details")
+        inspector_title.setStyleSheet("font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: #64748b;")
         inspector_layout.addWidget(inspector_title)
 
         self.detail_name = QLabel("No item selected")
-        self.detail_name.setFont(QFont("", 13, QFont.Bold))
+        self.detail_name.setStyleSheet("font-size: 16px; font-weight: 700; color: #f8fafc;")
         inspector_layout.addWidget(self.detail_name)
 
         self.detail_eco = QLabel("")
-        self.detail_eco.setStyleSheet("color: #a6adc8;")
+        self.detail_eco.setStyleSheet("color: #64748b; font-size: 11px; font-weight: 600; text-transform: uppercase;")
         inspector_layout.addWidget(self.detail_eco)
 
-        self.detail_version = QLabel("")
-        inspector_layout.addWidget(self.detail_version)
+        # Version Comparison Card
+        ver_card = QWidget()
+        ver_card.setStyleSheet("background-color: #090a0d; border: 1px solid #1a1e27; border-radius: 6px;")
+        ver_card_layout = QHBoxLayout(ver_card)
+        ver_card_layout.setContentsMargins(10, 8, 10, 8)
+        self.detail_version = QLabel("—  →  —")
+        self.detail_version.setStyleSheet("color: #94a3b8; font-size: 12px; font-family: monospace; border: none; background: transparent;")
+        ver_card_layout.addWidget(self.detail_version)
+        inspector_layout.addWidget(ver_card)
 
         self.detail_desc = QLabel("")
         self.detail_desc.setWordWrap(True)
-        self.detail_desc.setStyleSheet("color: #bac2de;")
+        self.detail_desc.setStyleSheet("color: #94a3b8; font-size: 12px; line-height: 1.4;")
         inspector_layout.addWidget(self.detail_desc)
 
-        cmd_label = QLabel("Update Command:")
-        cmd_label.setStyleSheet("font-weight: bold; margin-top: 10px;")
+        cmd_label = QLabel("Update Command")
+        cmd_label.setStyleSheet("font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-top: 6px;")
         inspector_layout.addWidget(cmd_label)
 
         self.cmd_box = QTextEdit()
         self.cmd_box.setReadOnly(True)
-        self.cmd_box.setMaximumHeight(70)
+        self.cmd_box.setMaximumHeight(65)
         inspector_layout.addWidget(self.cmd_box)
 
         btn_row = QHBoxLayout()
-        self.copy_cmd_btn = QPushButton("📋 Copy")
+        btn_row.setSpacing(8)
+        self.copy_cmd_btn = QPushButton("Copy")
         self.copy_cmd_btn.clicked.connect(self._copy_command)
         btn_row.addWidget(self.copy_cmd_btn)
 
-        self.pin_btn = QPushButton("📌 Pin")
+        self.pin_btn = QPushButton("Pin")
         self.pin_btn.clicked.connect(self._toggle_pin_selected)
         btn_row.addWidget(self.pin_btn)
         inspector_layout.addLayout(btn_row)
 
-        self.update_single_btn = QPushButton("⚡ Update Package")
+        self.update_single_btn = QPushButton("Update Package")
         self.update_single_btn.setObjectName("primaryBtn")
         self.update_single_btn.clicked.connect(self.update_selected)
         inspector_layout.addWidget(self.update_single_btn)
@@ -423,13 +730,23 @@ class MainWindow(QMainWindow):
         inspector_layout.addStretch()
         splitter.addWidget(self.inspector)
 
+        root_layout.addWidget(body_widget)
+
+        # Bottom SizeGrip
+        grip_layout = QHBoxLayout()
+        grip_layout.setContentsMargins(0, 0, 2, 2)
+        grip_layout.addStretch()
+        grip = QSizeGrip(self)
+        grip_layout.addWidget(grip)
+        root_layout.addLayout(grip_layout)
+
     def set_items(self, items: list[InstalledItem]):
         self.items = items
         self.store.apply_preferences(self.items)
         self._populate_table()
         outdated_count = sum(1 for i in self.items if i.status == Status.OUTDATED)
-        self.update_all_btn.setText(f"⚡ Update All ({outdated_count})")
-        self.status_label.setText(f"Loaded {len(self.items)} items ({outdated_count} updates available)")
+        self.update_all_btn.setText(f"Update All ({outdated_count})" if outdated_count else "Update All")
+        self.status_label.setText(f"{len(self.items)} items discovered ({outdated_count} updates available)")
 
     def _populate_table(self):
         self.table.setRowCount(0)
@@ -437,49 +754,56 @@ class MainWindow(QMainWindow):
             self.table.insertRow(row_idx)
 
             # Star
-            star_item = QTableWidgetItem("⭐" if item.is_favorite else "☆")
+            star_item = QTableWidgetItem("★" if item.is_favorite else "☆")
             star_item.setTextAlignment(Qt.AlignCenter)
+            star_item.setForeground(QColor("#eab308" if item.is_favorite else "#334155"))
             self.table.setItem(row_idx, 0, star_item)
 
             # Name
             name_item = QTableWidgetItem(item.name)
             name_item.setData(Qt.UserRole, item.id)
+            name_item.setForeground(QColor("#f8fafc"))
             self.table.setItem(row_idx, 1, name_item)
 
             # Ecosystem
             eco_item = QTableWidgetItem(item.ecosystem.upper())
             eco_item.setTextAlignment(Qt.AlignCenter)
+            eco_item.setForeground(QColor("#64748b"))
             self.table.setItem(row_idx, 2, eco_item)
 
             # Installed
-            self.table.setItem(row_idx, 3, QTableWidgetItem(item.installed_version or "-"))
+            inst_item = QTableWidgetItem(item.installed_version or "—")
+            inst_item.setForeground(QColor("#94a3b8"))
+            self.table.setItem(row_idx, 3, inst_item)
 
             # Latest
-            latest_item = QTableWidgetItem(item.latest_version or "-")
+            latest_item = QTableWidgetItem(item.latest_version or "—")
+            latest_item.setForeground(QColor("#f8fafc" if item.status == Status.OUTDATED else "#64748b"))
             self.table.setItem(row_idx, 4, latest_item)
 
             # Status Chip
             status_item = QTableWidgetItem(item.status.value)
             if item.status == Status.OUTDATED:
-                status_item.setForeground(QColor("#fab387" if not item.is_major else "#f38ba8"))
+                status_item.setForeground(QColor("#f59e0b" if not item.is_major else "#f43f5e"))
                 if item.is_major:
                     status_item.setText("Major update")
             elif item.status == Status.UP_TO_DATE:
-                status_item.setForeground(QColor("#a6e3a1"))
+                status_item.setForeground(QColor("#10b981"))
             elif item.status == Status.PINNED:
-                status_item.setForeground(QColor("#6c7086"))
+                status_item.setForeground(QColor("#64748b"))
             self.table.setItem(row_idx, 5, status_item)
 
         self._apply_filters()
 
     def _on_sidebar_changed(self, row: int):
-        _, key = self.sidebar_items[row]
+        label, key = self.sidebar_items[row]
         if key == "Settings":
             self.open_settings()
             self.sidebar.setCurrentRow(self.last_sidebar_row)
             return
 
         self.last_sidebar_row = row
+        self.view_title.setText(label)
         if key == "History":
             self.table.setVisible(False)
             self.history_table.setVisible(True)
@@ -500,8 +824,8 @@ class MainWindow(QMainWindow):
             self.history_table.setItem(idx, 1, QTableWidgetItem(rec.item_name))
             self.history_table.setItem(idx, 2, QTableWidgetItem(rec.from_version))
             self.history_table.setItem(idx, 3, QTableWidgetItem(rec.to_version))
-            res_item = QTableWidgetItem("✓ Success" if rec.success else "✗ Failed")
-            res_item.setForeground(QColor("#a6e3a1" if rec.success else "#f38ba8"))
+            res_item = QTableWidgetItem("Success" if rec.success else "Failed")
+            res_item.setForeground(QColor("#10b981" if rec.success else "#f43f5e"))
             self.history_table.setItem(idx, 4, res_item)
 
     def _toggle_updates_only(self, checked: bool):
@@ -549,11 +873,11 @@ class MainWindow(QMainWindow):
             return
 
         self.detail_name.setText(item.name)
-        self.detail_eco.setText(f"{item.category.value} • {item.ecosystem}")
-        self.detail_version.setText(f"Installed: {item.installed_version}  ➔  Latest: {item.latest_version or 'N/A'}")
+        self.detail_eco.setText(f"{item.category.value.upper()} • {item.ecosystem.upper()}")
+        self.detail_version.setText(f"{item.installed_version or 'unknown'}  →  {item.latest_version or 'latest'}")
         self.detail_desc.setText(item.description or "No description provided.")
         self.cmd_box.setPlainText(item.update_command or "# No update command defined")
-        self.pin_btn.setText("📌 Unpin" if item.is_pinned else "📌 Pin")
+        self.pin_btn.setText("Unpin" if item.is_pinned else "Pin")
         self.update_single_btn.setEnabled(bool(item.update_command and item.status == Status.OUTDATED))
 
     def _on_cell_double_clicked(self, row: int, col: int):
@@ -569,10 +893,12 @@ class MainWindow(QMainWindow):
                 self.store.unfavorite(item.id)
                 item.is_favorite = False
                 self.table.item(row, 0).setText("☆")
+                self.table.item(row, 0).setForeground(QColor("#334155"))
             else:
                 self.store.favorite(item.id)
                 item.is_favorite = True
-                self.table.item(row, 0).setText("⭐")
+                self.table.item(row, 0).setText("★")
+                self.table.item(row, 0).setForeground(QColor("#eab308"))
 
     def _copy_command(self):
         cmd = self.cmd_box.toPlainText()

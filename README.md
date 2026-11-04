@@ -6,6 +6,10 @@ Inspired by [UpdatyMe](https://github.com/DanielFiller30/UpdatyMe) for macOS, **
 
 APT, Flatpak, Snap, Python packages, global NPM tools, and developer runtimes — UpdatyMeow discovers what you have installed, tells you what's outdated, and updates it when *you* say so.
 
+<p align="center">
+  <img src="assets/screenshot.png" alt="UpdatyMeow Screenshot" width="850">
+</p>
+
 ---
 
 ## ✨ Features
