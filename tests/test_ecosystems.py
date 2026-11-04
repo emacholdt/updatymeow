@@ -72,7 +72,7 @@ org.gimp.GIMP\t2.10.36\t2.10.38
         sample_json = """[
             {"name": "black", "version": "23.1.0", "latest_version": "24.1.0"}
         ]"""
-        items = parse_pip_outdated(sample_json)
+        items = parse_pip_outdated(sample_json, is_user=False)
         self.assertEqual(len(items), 1)
         self.assertEqual(items[0].id, "pip:black")
         self.assertEqual(items[0].name, "black")
@@ -80,6 +80,9 @@ org.gimp.GIMP\t2.10.36\t2.10.38
         self.assertEqual(items[0].installed_version, "23.1.0")
         self.assertEqual(items[0].latest_version, "24.1.0")
         self.assertEqual(items[0].update_command, "pip install -U black")
+
+        user_items = parse_pip_outdated(sample_json, is_user=True)
+        self.assertEqual(user_items[0].update_command, "pip install --user -U black")
 
 if __name__ == "__main__":
     unittest.main()

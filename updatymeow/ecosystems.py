@@ -1,7 +1,9 @@
 import json
+from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Optional
 from updatymeow.models import Category, InstalledItem, Status
@@ -98,8 +100,9 @@ def parse_npm_outdated(json_str: str) -> list[InstalledItem]:
         pass
     return items
 
-def parse_pip_outdated(json_str: str) -> list[InstalledItem]:
+def parse_pip_outdated(json_str: str, is_user: bool = False) -> list[InstalledItem]:
     items = []
+    user_flag = " --user" if is_user else ""
     try:
         data = json.loads(json_str)
         if isinstance(data, list):
@@ -115,7 +118,7 @@ def parse_pip_outdated(json_str: str) -> list[InstalledItem]:
                         ecosystem="pip",
                         installed_version=ver,
                         latest_version=latest,
-                        update_command=f"pip install -U {name}",
+                        update_command=f"pip install{user_flag} -U {name}",
                         description=f"Python package ({name})",
                     )
                 )
@@ -177,8 +180,13 @@ def scan_pip() -> list[InstalledItem]:
     pip_cmd = "pip" if shutil.which("pip") else None
     if not pip_cmd:
         return []
+    # shortcut: on PEP 668 systems only scan --user to prevent conflicting with APT packages
+    marker = Path(sys.prefix) / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "EXTERNALLY-MANAGED"
+    if marker.exists():
+        out = _run_cmd([pip_cmd, "list", "--user", "--outdated", "--format=json"])
+        return parse_pip_outdated(out, is_user=True)
     out = _run_cmd([pip_cmd, "list", "--outdated", "--format=json"])
-    return parse_pip_outdated(out)
+    return parse_pip_outdated(out, is_user=False)
 
 def scan_runtimes() -> list[InstalledItem]:
     items = []
