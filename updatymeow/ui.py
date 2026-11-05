@@ -1,10 +1,11 @@
 from datetime import datetime
 import os
+from pathlib import Path
 import subprocess
 from typing import Optional
 
 from PyQt5.QtCore import Qt, QThread, QTimer, QUrl, pyqtSignal
-from PyQt5.QtGui import QColor, QDesktopServices, QFont, QIcon
+from PyQt5.QtGui import QColor, QDesktopServices, QFont, QIcon, QPixmap
 from PyQt5.QtWidgets import (
     QAction,
     QApplication,
@@ -39,6 +40,27 @@ from updatymeow.ecosystems import scan_all_ecosystems
 from updatymeow.models import Category, InstalledItem, Status, UpdateRecord
 from updatymeow.runner import execute_command
 from updatymeow.store import Store
+
+
+def get_app_icon() -> QIcon:
+    """Find and return the UpdatyMeow brand icon."""
+    candidates = [
+        Path(__file__).resolve().parent.parent / "assets" / "icon.png",
+        Path(__file__).resolve().parent.parent / "assets" / "icon.svg",
+        Path.home() / ".local" / "lib" / "updatymeow" / "assets" / "icon.png",
+        Path.home() / ".local" / "share" / "icons" / "hicolor" / "128x128" / "apps" / "updatymeow.png",
+        Path.home() / ".local" / "share" / "icons" / "hicolor" / "scalable" / "apps" / "updatymeow.svg",
+    ]
+    for p in candidates:
+        if p.exists():
+            return QIcon(str(p))
+    icon = QIcon.fromTheme("updatymeow")
+    if not icon.isNull():
+        return icon
+    icon = QIcon.fromTheme("system-software-update")
+    if not icon.isNull():
+        return icon
+    return QApplication.style().standardIcon(QStyle.SP_ArrowUp)
 
 STYLESHEET = """
 QMainWindow, QDialog {
@@ -447,8 +469,15 @@ class IntegratedTitleBar(QWidget):
         """)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 8, 0)
-        layout.setSpacing(4)
+        layout.setContentsMargins(10, 0, 8, 0)
+        layout.setSpacing(6)
+
+        icon = get_app_icon()
+        if not icon.isNull():
+            self.icon_lbl = QLabel()
+            self.icon_lbl.setPixmap(icon.pixmap(16, 16))
+            self.icon_lbl.setStyleSheet("background: transparent; border: none;")
+            layout.addWidget(self.icon_lbl)
 
         self.title_lbl = QLabel("UPDATYMEOW")
         self.title_lbl.setObjectName("titleText")
@@ -508,6 +537,7 @@ class MainWindow(QMainWindow):
         self.last_sidebar_row = 0
 
         self.setWindowTitle("UpdatyMeow - Linux Software Updates")
+        self.setWindowIcon(get_app_icon())
         self.resize(1100, 680)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         self.setStyleSheet(STYLESHEET)
@@ -960,10 +990,7 @@ class MainWindow(QMainWindow):
 
     def _setup_tray(self):
         self.tray_icon = QSystemTrayIcon(self)
-        icon = QIcon.fromTheme("system-software-update")
-        if icon.isNull():
-            icon = self.style().standardIcon(QStyle.SP_ArrowUp)
-        self.tray_icon.setIcon(icon)
+        self.tray_icon.setIcon(get_app_icon())
         self.tray_icon.setToolTip("UpdatyMeow - Software Updates")
 
         tray_menu = QMenu()

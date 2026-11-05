@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/icon.png" width="110" alt="UpdatyMeow Logo">
+</p>
+
 # UpdatyMeow 🐱
 
 ### Every update on your Linux machine. One window.
