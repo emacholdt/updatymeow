@@ -20,6 +20,12 @@ class TestCLI(unittest.TestCase):
         parsed = parse_args(["--minimized"])
         self.assertTrue(parsed.minimized)
 
+    def test_cli_version_flag(self):
+        from updatymeow.cli import parse_args
+        with self.assertRaises(SystemExit) as cm:
+            parse_args(["--version"])
+        self.assertEqual(cm.exception.code, 0)
+
 if __name__ == "__main__":
     unittest.main()
 

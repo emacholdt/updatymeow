@@ -1,10 +1,12 @@
 import sys
 import argparse
+from updatymeow import __version__
 from updatymeow.ecosystems import scan_all_ecosystems
 from updatymeow.models import Status
 
 def parse_args(args: list[str] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="UpdatyMeow - Linux Software Updates in One Window")
+    parser.add_argument("--version", "-v", action="version", version=f"UpdatyMeow {__version__}")
     parser.add_argument("--check", action="store_true", help="Check for updates and print summary to terminal")
     parser.add_argument("--minimized", action="store_true", help="Start minimized to system tray (e.g. at login)")
     return parser.parse_args(args)

@@ -48,12 +48,25 @@ APT, Flatpak, Snap, Python packages, global NPM tools, and developer runtimes â€
 
 ## ðŸš€ Installation & Getting Started
 
-### Prerequisites
+### Standalone AppImage (Universal Linux)
 
+Download the self-contained, portable AppImage from [GitHub Releases](https://github.com/emacholdt/updatymeow/releases):
+
+```bash
+chmod +x UpdatyMeow-*-x86_64.AppImage
+./UpdatyMeow-*-x86_64.AppImage
+```
+
+To build the AppImage locally yourself:
+```bash
+./build_appimage.sh
+```
+
+### Native Script Install
+
+#### Prerequisites
 - Python 3.10+
 - PyQt5 (`sudo apt install python3-pyqt5`)
-
-### Install
 
 ```bash
 git clone https://github.com/emacholdt/updatymeow.git
