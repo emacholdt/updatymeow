@@ -6,6 +6,14 @@
 
 ### Every update on your Linux machine. One window.
 
+<p align="center">
+  <a href="https://github.com/emacholdt/updatymeow/releases/latest"><img src="https://img.shields.io/github/v/release/emacholdt/updatymeow?color=2563eb&label=release" alt="Latest Release"></a>
+  <a href="https://github.com/emacholdt/updatymeow/actions"><img src="https://img.shields.io/github/actions/workflow/status/emacholdt/updatymeow/release-appimage.yml?label=build" alt="Build Status"></a>
+  <a href="https://github.com/emacholdt/updatymeow/releases/latest"><img src="https://img.shields.io/badge/package-AppImage-2563eb" alt="AppImage Package"></a>
+  <a href="https://github.com/emacholdt/updatymeow"><img src="https://img.shields.io/badge/platform-Linux-2563eb?logo=linux&logoColor=white" alt="Linux Platform"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2563eb" alt="MIT License"></a>
+</p>
+
 Inspired by [UpdatyMe](https://github.com/DanielFiller30/UpdatyMe) for macOS, **UpdatyMeow** brings the unified, single-window update experience to the Linux desktop.
 
 APT, Flatpak, Snap, Python packages, global NPM tools, and developer runtimes — UpdatyMeow discovers what you have installed, tells you what's outdated, and updates it when *you* say so.
