@@ -31,11 +31,17 @@ jobs:
           chmod +x build_appimage.sh
           ./build_appimage.sh
 
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: UpdatyMeow-AppImage
+          path: dist/UpdatyMeow-*-x86_64.AppImage
+          if-no-files-found: error
+
       - name: Release AppImage
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: |
-            dist/UpdatyMeow-*-x86_64.AppImage
-            dist/UpdatyMeow-x86_64.AppImage
+          files: dist/UpdatyMeow-*-x86_64.AppImage
           generate_release_notes: true
+
