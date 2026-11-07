@@ -71,6 +71,25 @@ class TestUI(unittest.TestCase):
         self.assertEqual(dialog.interval_combo.currentText(), "Every 6 hours")
         dialog.close()
 
+    def test_about_dialog(self):
+        from updatymeow.ui import AboutDialog
+        dialog = AboutDialog(self.window)
+        self.assertIsNotNone(dialog)
+        self.assertIn("About UpdatyMeow", dialog.windowTitle())
+        dialog.close()
+
+    def test_tray_menu_rebuild(self):
+        items = [
+            InstalledItem("apt:curl", "curl", Category.SYSTEM, "apt", "1.0", "1.1"),
+        ]
+        self.window.set_items(items)
+        self.window._rebuild_tray_menu()
+        actions = [a.text() for a in self.window.tray_menu.actions()]
+        self.assertTrue(any("UpdatyMeow" in a for a in actions))
+        self.assertTrue(any("1 update(s) available" in a for a in actions))
+        self.assertTrue(any("Update All" in a for a in actions))
+        self.assertTrue(any("About UpdatyMeow" in a for a in actions))
+
 if __name__ == "__main__":
     unittest.main()
 

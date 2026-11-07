@@ -36,6 +36,7 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
+from updatymeow import __version__
 from updatymeow.ecosystems import build_batch_update_commands, scan_all_ecosystems
 from updatymeow.models import Category, InstalledItem, Status, UpdateRecord
 from updatymeow.runner import execute_command
@@ -338,6 +339,88 @@ class UpdateWorker(QThread):
         self.all_done.emit()
 
 
+class AboutDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("About UpdatyMeow")
+        self.setFixedSize(460, 370)
+        self.setStyleSheet(STYLESHEET)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(28, 28, 28, 24)
+        layout.setSpacing(14)
+
+        # Header with Logo & Title
+        header = QHBoxLayout()
+        header.setSpacing(16)
+
+        icon_lbl = QLabel()
+        app_icon = get_app_icon()
+        if not app_icon.isNull():
+            icon_lbl.setPixmap(app_icon.pixmap(56, 56))
+        header.addWidget(icon_lbl)
+
+        title_layout = QVBoxLayout()
+        title_layout.setSpacing(2)
+        title_lbl = QLabel("UpdatyMeow")
+        title_lbl.setStyleSheet("font-size: 20px; font-weight: 800; color: #f8fafc; letter-spacing: -0.3px;")
+        ver_lbl = QLabel(f"Version {__version__}")
+        ver_lbl.setStyleSheet("font-size: 12px; font-family: monospace; color: #3b82f6; font-weight: 600;")
+        title_layout.addWidget(title_lbl)
+        title_layout.addWidget(ver_lbl)
+        header.addLayout(title_layout)
+        header.addStretch()
+        layout.addLayout(header)
+
+        # Tagline
+        tagline = QLabel("Every update on your Linux machine. One window.")
+        tagline.setStyleSheet("font-size: 13px; color: #94a3b8;")
+        layout.addWidget(tagline)
+
+        # Ecosystem Chips Card
+        chips_card = QWidget()
+        chips_card.setStyleSheet("background-color: #090a0d; border: 1px solid #1a1e27; border-radius: 8px;")
+        chips_layout = QVBoxLayout(chips_card)
+        chips_layout.setContentsMargins(12, 10, 12, 10)
+        chips_title = QLabel("SUPPORTED ECOSYSTEMS")
+        chips_title.setStyleSheet("font-size: 10px; font-weight: 700; color: #64748b; letter-spacing: 0.5px;")
+        chips_text = QLabel("APT • Flatpak • Snap • Python Pip • Global NPM • Dev Runtimes")
+        chips_text.setStyleSheet("font-size: 12px; color: #cbd5e1; font-weight: 500;")
+        chips_layout.addWidget(chips_title)
+        chips_layout.addWidget(chips_text)
+        layout.addWidget(chips_card)
+
+        # Credits & License
+        credits_lbl = QLabel("MIT License • Inspired by Daniel Filler's UpdatyMe")
+        credits_lbl.setStyleSheet("font-size: 11px; color: #64748b;")
+        layout.addWidget(credits_lbl)
+
+        layout.addStretch()
+
+        # Action Buttons
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
+
+        gh_btn = QPushButton("GitHub Repository")
+        gh_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/emacholdt/updatymeow")))
+        btn_row.addWidget(gh_btn)
+
+        check_btn = QPushButton("Check for App Updates")
+        check_btn.clicked.connect(self._check_for_updates)
+        btn_row.addWidget(check_btn)
+
+        btn_row.addStretch()
+
+        close_btn = QPushButton("Close")
+        close_btn.setObjectName("primaryBtn")
+        close_btn.clicked.connect(self.accept)
+        btn_row.addWidget(close_btn)
+
+        layout.addLayout(btn_row)
+
+    def _check_for_updates(self):
+        QDesktopServices.openUrl(QUrl("https://github.com/emacholdt/updatymeow/releases/latest"))
+
+
 class SettingsDialog(QDialog):
     def __init__(self, parent=None, store: Optional[Store] = None):
         super().__init__(parent)
@@ -598,6 +681,7 @@ class MainWindow(QMainWindow):
             ("Favorites", "Favorites"),
             ("History", "History"),
             ("Settings", "Settings"),
+            ("About", "About"),
         ]
         for label, _ in self.sidebar_items:
             item = QListWidgetItem(label)
@@ -786,6 +870,11 @@ class MainWindow(QMainWindow):
         self.update_all_btn.setText(f"Update All ({outdated_count})" if outdated_count else "Update All")
         self.status_label.setText(f"{len(self.items)} items discovered ({outdated_count} updates available)")
         self._update_sidebar_badges()
+        if hasattr(self, "tray_icon") and self.tray_icon.isVisible():
+            if outdated_count:
+                self.tray_icon.setToolTip(f"UpdatyMeow — {outdated_count} update(s) available")
+            else:
+                self.tray_icon.setToolTip("UpdatyMeow — All software up to date")
 
     def _update_sidebar_badges(self):
         fav_ids = set(self.store.get_favorites())
@@ -797,7 +886,7 @@ class MainWindow(QMainWindow):
                 cnt = sum(1 for i in self.items if i.status == Status.OUTDATED and not self.store.is_pinned(i.id))
             elif key == "Favorites":
                 cnt = sum(1 for i in self.items if i.id in fav_ids and i.status == Status.OUTDATED)
-            elif key in ("History", "Settings"):
+            elif key in ("History", "Settings", "About"):
                 cnt = 0
             else:
                 cnt = sum(
@@ -902,6 +991,10 @@ class MainWindow(QMainWindow):
         label, key = self.sidebar_items[row]
         if key == "Settings":
             self.open_settings()
+            self.sidebar.setCurrentRow(self.last_sidebar_row)
+            return
+        if key == "About":
+            self.open_about()
             self.sidebar.setCurrentRow(self.last_sidebar_row)
             return
 
@@ -1061,25 +1154,73 @@ class MainWindow(QMainWindow):
         if dlg.exec_() == QDialog.Accepted:
             self._setup_timer()
 
+    def open_about(self):
+        dlg = AboutDialog(self)
+        dlg.exec_()
+
     def _setup_tray(self):
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(get_app_icon())
-        self.tray_icon.setToolTip("UpdatyMeow - Software Updates")
+        self.tray_icon.setToolTip("UpdatyMeow — All software up to date")
 
-        tray_menu = QMenu()
-        open_action = tray_menu.addAction("Open UpdatyMeow")
-        open_action.triggered.connect(self._show_and_activate)
-        check_action = tray_menu.addAction("Check for Updates")
-        check_action.triggered.connect(self.start_scan)
-        settings_action = tray_menu.addAction("Settings...")
-        settings_action.triggered.connect(self.open_settings)
-        tray_menu.addSeparator()
-        quit_action = tray_menu.addAction("Quit")
-        quit_action.triggered.connect(QApplication.quit)
+        self.tray_menu = QMenu()
+        self.tray_menu.setStyleSheet(STYLESHEET)
+        self.tray_menu.aboutToShow.connect(self._rebuild_tray_menu)
+        self._rebuild_tray_menu()
 
-        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.setContextMenu(self.tray_menu)
         self.tray_icon.activated.connect(self._on_tray_activated)
         self.tray_icon.show()
+
+    def _rebuild_tray_menu(self):
+        self.tray_menu.clear()
+        outdated = [i for i in self.items if i.status == Status.OUTDATED and not self.store.is_pinned(i.id)]
+
+        header_act = self.tray_menu.addAction(f"🐱 UpdatyMeow v{__version__}")
+        header_act.setEnabled(False)
+
+        if outdated:
+            status_act = self.tray_menu.addAction(f"● {len(outdated)} update(s) available")
+        else:
+            status_act = self.tray_menu.addAction("✓ All software up to date")
+        status_act.setEnabled(False)
+
+        self.tray_menu.addSeparator()
+
+        if outdated:
+            update_all_act = self.tray_menu.addAction(f"⚡ Update All ({len(outdated)})")
+            update_all_act.triggered.connect(self.update_all)
+
+            sub_menu = self.tray_menu.addMenu(f"📦 Pending Updates ({len(outdated)})")
+            for item in outdated[:12]:
+                inst = item.installed_version or "—"
+                latest = item.latest_version or "—"
+                sub_act = sub_menu.addAction(f"• {item.name} ({inst} → {latest})")
+                sub_act.setEnabled(False)
+            if len(outdated) > 12:
+                more_act = sub_menu.addAction(f"... and {len(outdated) - 12} more")
+                more_act.setEnabled(False)
+
+            self.tray_menu.addSeparator()
+
+        check_act = self.tray_menu.addAction("🔄 Check for Updates Now")
+        check_act.triggered.connect(self.start_scan)
+
+        open_act = self.tray_menu.addAction("🖥️ Open UpdatyMeow")
+        open_act.triggered.connect(self._show_and_activate)
+
+        self.tray_menu.addSeparator()
+
+        settings_act = self.tray_menu.addAction("⚙️ Settings...")
+        settings_act.triggered.connect(self.open_settings)
+
+        about_act = self.tray_menu.addAction("ℹ️ About UpdatyMeow")
+        about_act.triggered.connect(self.open_about)
+
+        self.tray_menu.addSeparator()
+
+        quit_act = self.tray_menu.addAction("✕ Quit")
+        quit_act.triggered.connect(QApplication.quit)
 
     def _on_tray_activated(self, reason):
         if reason == QSystemTrayIcon.Trigger:
