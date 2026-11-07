@@ -56,6 +56,53 @@ def parse_snap_refresh_list(output: str) -> list[InstalledItem]:
             )
     return items
 
+def parse_snap_inventory(list_out: str, refresh_out: str) -> list[InstalledItem]:
+    updates: dict[str, str] = {}
+    refresh_lines = refresh_out.strip().splitlines()
+    if len(refresh_lines) > 1:
+        for line in refresh_lines[1:]:
+            parts = line.split()
+            if len(parts) >= 2:
+                updates[parts[0]] = parts[1]
+
+    items = []
+    list_lines = list_out.strip().splitlines()
+    if len(list_lines) > 1:
+        for line in list_lines[1:]:
+            parts = line.split()
+            if len(parts) >= 2:
+                name = parts[0]
+                installed_ver = parts[1]
+                if name in updates:
+                    items.append(
+                        InstalledItem(
+                            id=f"snap:{name}",
+                            name=name,
+                            category=Category.APPS,
+                            ecosystem="snap",
+                            installed_version=installed_ver,
+                            latest_version=updates[name],
+                            status=Status.OUTDATED,
+                            update_command=f"sudo snap refresh {name}",
+                            description=f"Snap application ({name})",
+                        )
+                    )
+                else:
+                    items.append(
+                        InstalledItem(
+                            id=f"snap:{name}",
+                            name=name,
+                            category=Category.APPS,
+                            ecosystem="snap",
+                            installed_version=installed_ver,
+                            latest_version=installed_ver,
+                            status=Status.UP_TO_DATE,
+                            update_command="",
+                            description=f"Snap application ({name})",
+                        )
+                    )
+    return items
+
 def parse_flatpak_updates(output: str) -> list[InstalledItem]:
     items = []
     for line in output.strip().splitlines():
@@ -75,6 +122,117 @@ def parse_flatpak_updates(output: str) -> list[InstalledItem]:
                 )
             )
     return items
+
+def parse_flatpak_inventory(list_out: str, updates_out: str) -> list[InstalledItem]:
+    updates: dict[str, str] = {}
+    for line in updates_out.strip().splitlines():
+        parts = line.split()
+        if len(parts) >= 2:
+            updates[parts[0]] = parts[1]
+
+    items = []
+    for line in list_out.strip().splitlines():
+        if not line.strip() or line.startswith("Application ID"):
+            continue
+        parts = [p.strip() for p in line.split("\t") if p.strip()]
+        if not parts:
+            parts = line.split()
+        if len(parts) >= 1:
+            app_id = parts[0]
+            ver = parts[1] if len(parts) >= 2 else ""
+            app_name = parts[2] if len(parts) >= 3 else app_id
+            if app_id in updates:
+                items.append(
+                    InstalledItem(
+                        id=f"flatpak:{app_id}",
+                        name=app_name,
+                        category=Category.APPS,
+                        ecosystem="flatpak",
+                        installed_version=ver,
+                        latest_version=updates[app_id],
+                        status=Status.OUTDATED,
+                        update_command=f"flatpak update -y {app_id}",
+                        description=f"Flatpak package ({app_id})",
+                    )
+                )
+            else:
+                items.append(
+                    InstalledItem(
+                        id=f"flatpak:{app_id}",
+                        name=app_name,
+                        category=Category.APPS,
+                        ecosystem="flatpak",
+                        installed_version=ver,
+                        latest_version=ver,
+                        status=Status.UP_TO_DATE,
+                        update_command="",
+                        description=f"Flatpak package ({app_id})",
+                    )
+                )
+    return items
+
+def parse_apt_inventory(upgradable_out: str, manual_names: set[str], installed_pkgs: dict[str, str]) -> list[InstalledItem]:
+    upgradable_items = parse_apt_upgradable(upgradable_out)
+    upgradable_pkg_names = {i.name for i in upgradable_items}
+
+    items = list(upgradable_items)
+    for pkg in sorted(manual_names):
+        if pkg in upgradable_pkg_names:
+            continue
+        ver = installed_pkgs.get(pkg, "")
+        if ver:
+            items.append(
+                InstalledItem(
+                    id=f"apt:{pkg}",
+                    name=pkg,
+                    category=Category.SYSTEM,
+                    ecosystem="apt",
+                    installed_version=ver,
+                    latest_version=ver,
+                    status=Status.UP_TO_DATE,
+                    update_command="",
+                    description=f"Debian/Ubuntu package ({pkg})",
+                )
+            )
+    return items
+
+def build_batch_update_commands(items: list[InstalledItem], elevate: str = "sudo") -> list[tuple[str, list[str]]]:
+    """Group items by ecosystem into single atomic update commands where supported."""
+    batches: list[tuple[str, list[str]]] = []
+
+    apt_items = [i for i in items if i.ecosystem == "apt" and i.status == Status.OUTDATED]
+    snap_items = [i for i in items if i.ecosystem == "snap" and i.status == Status.OUTDATED]
+    flatpak_items = [i for i in items if i.ecosystem == "flatpak" and i.status == Status.OUTDATED]
+    npm_items = [i for i in items if i.ecosystem == "npm" and i.status == Status.OUTDATED]
+    pip_items = [i for i in items if i.ecosystem == "pip" and i.status == Status.OUTDATED]
+    other_items = [i for i in items if i.ecosystem not in ("apt", "snap", "flatpak", "npm", "pip") and i.status == Status.OUTDATED]
+
+    if apt_items:
+        names = " ".join(i.name for i in apt_items)
+        batches.append((f"{elevate} apt-get install --only-upgrade -y {names}", [i.id for i in apt_items]))
+
+    if snap_items:
+        names = " ".join(i.name for i in snap_items)
+        batches.append((f"{elevate} snap refresh {names}", [i.id for i in snap_items]))
+
+    if flatpak_items:
+        ids = " ".join(i.id.replace("flatpak:", "") for i in flatpak_items)
+        batches.append((f"flatpak update -y {ids}", [i.id for i in flatpak_items]))
+
+    if npm_items:
+        names = " ".join(f"{i.name}@latest" for i in npm_items)
+        batches.append((f"npm install -g {names}", [i.id for i in npm_items]))
+
+    if pip_items:
+        user_flag = " --user" if any("--user" in (i.update_command or "") for i in pip_items) else ""
+        names = " ".join(i.name for i in pip_items)
+        batches.append((f"pip install{user_flag} -U {names}", [i.id for i in pip_items]))
+
+    for item in other_items:
+        if item.update_command:
+            batches.append((item.update_command, [item.id]))
+
+    return batches
 
 def parse_npm_outdated(json_str: str) -> list[InstalledItem]:
     items = []
@@ -167,39 +325,35 @@ def _run_cmd(cmd: list[str], timeout: int = 25) -> str:
 def scan_apt() -> list[InstalledItem]:
     if not shutil.which("apt"):
         return []
-    out = _run_cmd(["apt", "list", "--upgradable"])
-    return parse_apt_upgradable(out)
+    upgradable_out = _run_cmd(["apt", "list", "--upgradable"])
+    manual_names: set[str] = set()
+    if shutil.which("apt-mark"):
+        manual_out = _run_cmd(["apt-mark", "showmanual"])
+        manual_names = {l.strip() for l in manual_out.splitlines() if l.strip()}
+
+    installed_pkgs: dict[str, str] = {}
+    if shutil.which("dpkg-query"):
+        dpkg_out = _run_cmd(["dpkg-query", "-W", "-f=${binary:Package}\t${Version}\t${db:Status-Status}\n"])
+        for line in dpkg_out.splitlines():
+            parts = line.split("\t")
+            if len(parts) >= 3 and parts[2] == "installed":
+                installed_pkgs[parts[0]] = parts[1]
+
+    return parse_apt_inventory(upgradable_out, manual_names, installed_pkgs)
 
 def scan_snap() -> list[InstalledItem]:
     if not shutil.which("snap"):
         return []
-    out = _run_cmd(["snap", "refresh", "--list"])
-    return parse_snap_refresh_list(out)
+    list_out = _run_cmd(["snap", "list"])
+    refresh_out = _run_cmd(["snap", "refresh", "--list"])
+    return parse_snap_inventory(list_out, refresh_out)
 
 def scan_flatpak() -> list[InstalledItem]:
     if not shutil.which("flatpak"):
         return []
-    # shortcut: query remote updates using standard flatpak command
-    out = _run_cmd(["flatpak", "remote-ls", "--updates", "--columns=application,version"])
-    items = []
-    for line in out.strip().splitlines():
-        parts = line.split()
-        if len(parts) >= 2:
-            app_id, new_ver = parts[0], parts[1]
-            items.append(
-                InstalledItem(
-                    id=f"flatpak:{app_id}",
-                    name=app_id,
-                    category=Category.APPS,
-                    ecosystem="flatpak",
-                    installed_version="",
-                    latest_version=new_ver,
-                    status=Status.OUTDATED,
-                    update_command=f"flatpak update -y {app_id}",
-                    description=f"Flatpak application ({app_id})",
-                )
-            )
-    return items
+    list_out = _run_cmd(["flatpak", "list", "--columns=application,version,name"])
+    updates_out = _run_cmd(["flatpak", "remote-ls", "--updates", "--columns=application,version"])
+    return parse_flatpak_inventory(list_out, updates_out)
 
 def scan_npm() -> list[InstalledItem]:
     if not shutil.which("npm"):

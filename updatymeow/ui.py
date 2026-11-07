@@ -36,7 +36,7 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
-from updatymeow.ecosystems import scan_all_ecosystems
+from updatymeow.ecosystems import build_batch_update_commands, scan_all_ecosystems
 from updatymeow.models import Category, InstalledItem, Status, UpdateRecord
 from updatymeow.runner import execute_command
 from updatymeow.store import Store
@@ -323,18 +323,18 @@ class UpdateWorker(QThread):
         self.sudo_password = sudo_password
 
     def run(self):
-        for item in self.items:
-            if not item.update_command:
-                continue
-            self.line_output.emit(f"==> Updating {item.name} ({item.id})...")
-            self.line_output.emit(f"$ {item.update_command}")
+        batches = build_batch_update_commands(self.items)
+        for cmd, item_ids in batches:
+            self.line_output.emit(f"==> Updating {len(item_ids)} package(s)...")
+            self.line_output.emit(f"$ {cmd}")
             code, out = execute_command(
-                item.update_command,
+                cmd,
                 on_output=self.line_output.emit,
                 sudo_password=self.sudo_password,
             )
             success = code == 0
-            self.item_finished.emit(item.id, success, out)
+            for iid in item_ids:
+                self.item_finished.emit(iid, success, out)
         self.all_done.emit()
 
 
@@ -626,6 +626,7 @@ class MainWindow(QMainWindow):
         self.view_title.setStyleSheet("font-size: 20px; font-weight: 700; color: #f8fafc; letter-spacing: -0.3px;")
         self.status_label = QLabel("Scanning system for updates...")
         self.status_label.setStyleSheet("color: #64748b; font-size: 13px; font-weight: 400;")
+        self.status_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         header_text_layout.addWidget(self.view_title)
         header_text_layout.addWidget(self.status_label)
         header_row.addLayout(header_text_layout)
@@ -677,6 +678,8 @@ class MainWindow(QMainWindow):
         self.table.setColumnWidth(5, 140)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
+        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._show_table_context_menu)
         self.table.verticalHeader().setVisible(False)
         self.table.verticalHeader().setDefaultSectionSize(36)
         self.table.setShowGrid(False)
@@ -710,10 +713,12 @@ class MainWindow(QMainWindow):
         inspector_layout.addWidget(inspector_title)
 
         self.detail_name = QLabel("No item selected")
+        self.detail_name.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.detail_name.setStyleSheet("font-size: 16px; font-weight: 700; color: #f8fafc;")
         inspector_layout.addWidget(self.detail_name)
 
         self.detail_eco = QLabel("")
+        self.detail_eco.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.detail_eco.setStyleSheet("color: #64748b; font-size: 11px; font-weight: 600; text-transform: uppercase;")
         inspector_layout.addWidget(self.detail_eco)
 
@@ -723,12 +728,14 @@ class MainWindow(QMainWindow):
         ver_card_layout = QHBoxLayout(ver_card)
         ver_card_layout.setContentsMargins(10, 8, 10, 8)
         self.detail_version = QLabel("—  →  —")
+        self.detail_version.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.detail_version.setStyleSheet("color: #94a3b8; font-size: 12px; font-family: monospace; border: none; background: transparent;")
         ver_card_layout.addWidget(self.detail_version)
         inspector_layout.addWidget(ver_card)
 
         self.detail_desc = QLabel("")
         self.detail_desc.setWordWrap(True)
+        self.detail_desc.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.detail_desc.setStyleSheet("color: #94a3b8; font-size: 12px; line-height: 1.4;")
         inspector_layout.addWidget(self.detail_desc)
 
@@ -738,6 +745,7 @@ class MainWindow(QMainWindow):
 
         self.cmd_box = QTextEdit()
         self.cmd_box.setReadOnly(True)
+        self.cmd_box.setTextInteractionFlags(Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard)
         self.cmd_box.setMaximumHeight(65)
         inspector_layout.addWidget(self.cmd_box)
 
@@ -777,6 +785,71 @@ class MainWindow(QMainWindow):
         outdated_count = sum(1 for i in self.items if i.status == Status.OUTDATED)
         self.update_all_btn.setText(f"Update All ({outdated_count})" if outdated_count else "Update All")
         self.status_label.setText(f"{len(self.items)} items discovered ({outdated_count} updates available)")
+        self._update_sidebar_badges()
+
+    def _update_sidebar_badges(self):
+        fav_ids = set(self.store.get_favorites())
+        for row, (label, key) in enumerate(self.sidebar_items):
+            item = self.sidebar.item(row)
+            if not item:
+                continue
+            if key == "All":
+                cnt = sum(1 for i in self.items if i.status == Status.OUTDATED and not self.store.is_pinned(i.id))
+            elif key == "Favorites":
+                cnt = sum(1 for i in self.items if i.id in fav_ids and i.status == Status.OUTDATED)
+            elif key in ("History", "Settings"):
+                cnt = 0
+            else:
+                cnt = sum(
+                    1 for i in self.items
+                    if (i.category.value if isinstance(i.category, Category) else str(i.category)).lower() == key.lower()
+                    and i.status == Status.OUTDATED
+                    and not self.store.is_pinned(i.id)
+                )
+
+            if cnt > 0:
+                item.setText(f"{label}  ({cnt})")
+            else:
+                item.setText(label)
+
+    def _show_table_context_menu(self, pos):
+        item = self.table.itemAt(pos)
+        if not item:
+            return
+        row = item.row()
+        name_cell = self.table.item(row, 1)
+        if not name_cell:
+            return
+        item_id = name_cell.data(Qt.UserRole)
+        target = next((i for i in self.items if i.id == item_id), None)
+        if not target:
+            return
+
+        menu = QMenu(self)
+        copy_name = menu.addAction(f"Copy Name ({target.name})")
+        ver_text = target.installed_version or target.latest_version or "—"
+        copy_ver = menu.addAction(f"Copy Version ({ver_text})")
+        copy_cmd = menu.addAction("Copy Update Command") if target.update_command else None
+        menu.addSeparator()
+        fav_text = "Remove from Favorites" if target.is_favorite else "Add to Favorites"
+        fav_act = menu.addAction(fav_text)
+        pin_text = "Unpin Package" if self.store.is_pinned(target.id) else "Pin Package"
+        pin_act = menu.addAction(pin_text)
+
+        action = menu.exec_(self.table.viewport().mapToGlobal(pos))
+        if action == copy_name:
+            QApplication.clipboard().setText(target.name)
+            self.status_label.setText(f"Copied '{target.name}' to clipboard!")
+        elif action == copy_ver:
+            QApplication.clipboard().setText(ver_text)
+            self.status_label.setText(f"Copied version '{ver_text}' to clipboard!")
+        elif copy_cmd and action == copy_cmd:
+            QApplication.clipboard().setText(target.update_command)
+            self.status_label.setText("Copied update command to clipboard!")
+        elif action == fav_act:
+            self._toggle_favorite(target.id)
+        elif action == pin_act:
+            self._toggle_pin_selected()
 
     def _populate_table(self):
         self.table.setRowCount(0)

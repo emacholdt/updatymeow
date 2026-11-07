@@ -46,8 +46,14 @@ class Store:
         pinned.discard(item_id)
         self._write_json(self.pinned_file, sorted(list(pinned)))
 
+    def get_pinned(self) -> list[str]:
+        return self._read_json(self.pinned_file, [])
+
     def is_favorite(self, item_id: str) -> bool:
         return item_id in self._read_json(self.favorites_file, [])
+
+    def get_favorites(self) -> list[str]:
+        return self._read_json(self.favorites_file, [])
 
     def favorite(self, item_id: str):
         favs = set(self._read_json(self.favorites_file, []))

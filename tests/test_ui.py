@@ -44,6 +44,18 @@ class TestUI(unittest.TestCase):
         visible_rows = [r for r in range(self.window.table.rowCount()) if not self.window.table.isRowHidden(r)]
         self.assertEqual(len(visible_rows), 1)
 
+    def test_sidebar_badges(self):
+        items = [
+            InstalledItem("apt:curl", "curl", Category.SYSTEM, "apt", "1.0", "1.1"),
+            InstalledItem("snap:brave", "brave", Category.APPS, "snap", "1.0", "1.1"),
+            InstalledItem("snap:firefox", "firefox", Category.APPS, "snap", "120.0", "120.0", status=Status.UP_TO_DATE),
+        ]
+        self.window.set_items(items)
+        self.assertIn("(2)", self.window.sidebar.item(0).text())
+        self.assertIn("(1)", self.window.sidebar.item(1).text())
+        self.assertIn("(1)", self.window.sidebar.item(2).text())
+        self.assertEqual(self.window.sidebar.item(3).text(), "Runtimes")
+
     def test_run_updates_cancel_sudo(self):
         item = InstalledItem("apt:curl", "curl", Category.SYSTEM, "apt", "1.0", "1.1", update_command="sudo apt-get install curl")
         with unittest.mock.patch("PyQt5.QtWidgets.QInputDialog.getText", return_value=("", False)):

@@ -6,7 +6,7 @@ from updatymeow.ecosystems import (
     parse_npm_outdated,
     parse_pip_outdated,
 )
-from updatymeow.models import Category, Status
+from updatymeow.models import Category, InstalledItem, Status
 
 class TestEcosystems(unittest.TestCase):
     def test_parse_apt_upgradable(self):
@@ -100,6 +100,102 @@ org.gimp.GIMP\t2.10.36\t2.10.38
         self.assertEqual(items[0].name, "FooCLI")
         self.assertEqual(items[0].category, Category.TOOLS)
         self.assertEqual(items[0].status, Status.OUTDATED)
+
+    def test_parse_snap_inventory(self):
+        from updatymeow.ecosystems import parse_snap_inventory
+        list_out = """Name     Version   Rev    Tracking  Publisher   Notes
+brave    1.98.60   698    latest    brave✓      -
+firefox  125.0.1   9171   latest    mozilla✓    -
+spotify  1.2.0     99     latest    spotify✓    -
+"""
+        refresh_out = """Name   Version  Rev  Size   Publisher  Notes
+brave  1.99.55  705  234MB  brave✓     -
+"""
+        items = parse_snap_inventory(list_out, refresh_out)
+        self.assertEqual(len(items), 3)
+        brave = next(i for i in items if i.name == "brave")
+        firefox = next(i for i in items if i.name == "firefox")
+        spotify = next(i for i in items if i.name == "spotify")
+
+        self.assertEqual(brave.status, Status.OUTDATED)
+        self.assertEqual(brave.installed_version, "1.98.60")
+        self.assertEqual(brave.latest_version, "1.99.55")
+        self.assertIn("snap refresh brave", brave.update_command)
+
+        self.assertEqual(firefox.status, Status.UP_TO_DATE)
+        self.assertEqual(firefox.installed_version, "125.0.1")
+        self.assertEqual(firefox.latest_version, "125.0.1")
+        self.assertEqual(firefox.update_command, "")
+
+        self.assertEqual(spotify.status, Status.UP_TO_DATE)
+
+    def test_parse_flatpak_inventory(self):
+        from updatymeow.ecosystems import parse_flatpak_inventory
+        list_out = """Application ID\tVersion\tName
+com.bambulab.BambuStudio\t2.8.2\tBambu Studio
+org.gnome.baobab\t50.0\tDisk Usage Analyzer
+"""
+        updates_out = """com.bambulab.BambuStudio\t2.9.0
+"""
+        items = parse_flatpak_inventory(list_out, updates_out)
+        self.assertEqual(len(items), 2)
+        bambu = next(i for i in items if "BambuStudio" in i.id)
+        baobab = next(i for i in items if "baobab" in i.id)
+
+        self.assertEqual(bambu.status, Status.OUTDATED)
+        self.assertEqual(bambu.installed_version, "2.8.2")
+        self.assertEqual(bambu.latest_version, "2.9.0")
+        self.assertIn("flatpak update -y", bambu.update_command)
+
+        self.assertEqual(baobab.status, Status.UP_TO_DATE)
+        self.assertEqual(baobab.installed_version, "50.0")
+        self.assertEqual(baobab.update_command, "")
+
+    def test_parse_apt_inventory(self):
+        from updatymeow.ecosystems import parse_apt_inventory
+        upgradable_out = """Listing... Done
+curl/noble-updates 7.88.1-10ubuntu2.6 amd64 [upgradable from: 7.88.1-10ubuntu2.5]
+"""
+        manual_names = {"curl", "git", "vim"}
+        installed_pkgs = {"curl": "7.88.1-10ubuntu2.5", "git": "2.43.0", "vim": "9.1.0"}
+        items = parse_apt_inventory(upgradable_out, manual_names, installed_pkgs)
+
+        self.assertEqual(len(items), 3)
+        curl = next(i for i in items if i.name == "curl")
+        git = next(i for i in items if i.name == "git")
+
+        self.assertEqual(curl.status, Status.OUTDATED)
+        self.assertEqual(curl.installed_version, "7.88.1-10ubuntu2.5")
+        self.assertEqual(curl.latest_version, "7.88.1-10ubuntu2.6")
+
+        self.assertEqual(git.status, Status.UP_TO_DATE)
+        self.assertEqual(git.installed_version, "2.43.0")
+        self.assertEqual(git.latest_version, "2.43.0")
+
+    def test_build_batch_update_commands(self):
+        from updatymeow.ecosystems import build_batch_update_commands
+        items = [
+            InstalledItem("apt:curl", "curl", Category.SYSTEM, "apt", "1.0", "1.1"),
+            InstalledItem("apt:git", "git", Category.SYSTEM, "apt", "2.0", "2.1"),
+            InstalledItem("snap:brave", "brave", Category.APPS, "snap", "1.0", "1.1"),
+            InstalledItem("snap:firefox", "firefox", Category.APPS, "snap", "120.0", "121.0"),
+            InstalledItem("flatpak:org.foo", "org.foo", Category.APPS, "flatpak", "1.0", "2.0"),
+        ]
+        batches = build_batch_update_commands(items, elevate="sudo")
+        self.assertEqual(len(batches), 3)
+
+        apt_cmd, apt_ids = next(b for b in batches if "apt-get" in b[0])
+        snap_cmd, snap_ids = next(b for b in batches if "snap refresh" in b[0])
+        flat_cmd, flat_ids = next(b for b in batches if "flatpak update" in b[0])
+
+        self.assertIn("curl git", apt_cmd)
+        self.assertEqual(apt_ids, ["apt:curl", "apt:git"])
+
+        self.assertIn("brave firefox", snap_cmd)
+        self.assertEqual(snap_ids, ["snap:brave", "snap:firefox"])
+
+        self.assertIn("org.foo", flat_cmd)
+        self.assertEqual(flat_ids, ["flatpak:org.foo"])
 
 if __name__ == "__main__":
     unittest.main()
